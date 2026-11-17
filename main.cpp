@@ -4,6 +4,11 @@
 #include <QDebug>
 #include <iostream>
 #include "config.h"
+#include "mkl.h"
+
+void test() {
+    
+}
 
 int main(int argc, char *argv[])
 {
@@ -13,7 +18,7 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle("FluentWinUI3");
     QQmlApplicationEngine engine;
 
-    engine.setExternalSingletonInstance("Constants","Config",&Config::instance());
+    engine.setExternalSingletonInstance("Constants","Singleton",&Config::instance());
     engine.loadFromModule("Constants", "Main");
 
     QObject::connect(

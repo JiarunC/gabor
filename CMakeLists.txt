@@ -8,6 +8,8 @@ set(CMAKE_PREFIX_PATH "C:\\Qt\\6.12.0\\mingw_64\\lib\\cmake")
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Gui Sql Core QuickControls2 Concurrent)
 
+find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
+
 qt_standard_project_setup(REQUIRES 6.10)
 
 qt_add_executable(appWAV
@@ -32,11 +34,11 @@ set_target_properties(appWAV PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+    WIN32_EXECUTABLE FALSE
 )
 
 target_link_libraries(appWAV
-    PRIVATE Qt6::Gui Qt6::Sql Qt6::Core Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Overlaylibplugin
+    PRIVATE Qt6::Gui Qt6::Sql Qt6::Core Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Overlaylibplugin PUBLIC MKL::MKL
 )
 
 install(TARGETS appWAV

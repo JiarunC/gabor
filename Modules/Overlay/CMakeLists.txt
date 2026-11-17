@@ -7,6 +7,7 @@ qt_add_qml_module(${PROJECT_NAME}lib
         Overlay.qml
         SOURCES
         AudioCapture.h
+        AudioProcess.h
 )
 
 target_link_libraries(${PROJECT_NAME}lib

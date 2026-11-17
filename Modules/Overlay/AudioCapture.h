@@ -8,69 +8,118 @@
 #include <mmdeviceapi.h>
 #include <QtConcurrentRun>
 #include <QFuture>
+#include "AudioProcess.h"
+#include <QThread>
+
 // https://learn.microsoft.com/en-us/windows/win32/coreaudio/capturing-a-stream
-
-static signed long long ref_times_per_s = 10000000;
-
-static HRESULT hr;
-static REFERENCE_TIME hnsRequestedDuration = ref_times_per_s;
-static REFERENCE_TIME hnsActualDuration;
-static UINT32 bufferFrameCount;
-static UINT32 numFramesAvailable;
-static IMMDeviceEnumerator *pEnumerator = nullptr;
-static IMMDevice *pDevice = nullptr;
-static IAudioClient *pAudioClient = nullptr;
-static IAudioCaptureClient *pCaptureClient = nullptr;
-static WAVEFORMATEX *pwfx = nullptr;
-static UINT32 packetLength = 0;
-static BOOL bDone = FALSE;
-static BYTE *pData;
-static DWORD flags;
-static HANDLE handle = CreateEvent(
-    nullptr,
-    true,
-    false,
-    TEXT("AudioCallback")
-);
 
 inline const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
 inline const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 inline const IID IID_IAudioClient = __uuidof(IAudioClient);
 inline const IID IID_IAudioCaptureClient = __uuidof(IAudioCaptureClient);
 
-template<class T>
-static void safe_release(T *&punk) {
-    if (punk != nullptr) {
-        punk->Release();
-        punk = nullptr;
-    }
-}
-
-static void exit() {
-    CoTaskMemFree(pwfx);
-    safe_release(pEnumerator);
-    safe_release(pDevice);
-    safe_release(pAudioClient);
-    safe_release(pCaptureClient);
-}
-
 class AudioCapture : public QObject {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(bool status WRITE set_status)
+    Q_PROPERTY(QList<float> gY READ gY NOTIFY dataChanged)
+    Q_PROPERTY(QList<float> gX READ gX NOTIFY dataChanged)
 private:
-    bool m_status = true;
+    bool mStatus = true;
+    QList<float> mYL = QList<float>(3,1);
+    QList<float> mXL = {1,2,3};
+    vector<float> pool = vector<float>(2048, 0);
+
+    /* Used by the capture thread */
+    signed long long ref_times_per_s = 10000000;
+    REFERENCE_TIME hnsRequestedDuration = 10000000;
+    REFERENCE_TIME hnsActualDuration;
+    UINT32 bufferFrameCount;
+    UINT32 numFramesAvailable;
+    IMMDeviceEnumerator *pEnumerator = nullptr;
+    IMMDevice *pDevice = nullptr;
+    IAudioClient *pAudioClient = nullptr;
+    IAudioCaptureClient *pCaptureClient = nullptr;
+    WAVEFORMATEX *pwfx = nullptr;
+    UINT32 packetLength = 0;
+    BOOL bDone = FALSE;
+    BYTE *pData;
+    DWORD flags;
+    HANDLE handle = CreateEvent(
+        nullptr,
+        true,
+        false,
+        TEXT("AudioCallback")
+    );
 public:
+    signals:
+    void dataChanged();
+public:
+
     explicit AudioCapture(QObject *parent = nullptr) : QObject(parent) {
-        qDebug() << "Gonna";
-        QFuture<void> future = QtConcurrent::run(&AudioCapture::RecordAudioStream, this);
+        QFuture<void> future1 = QtConcurrent::run(&AudioCapture::captureAudio, this);
+        QFuture<void> future2 = QtConcurrent::run(&AudioCapture::updateSeries, this);
+    }
+
+    ~AudioCapture() override {
+        exit();
+    }
+
+    template<class T>
+    static void safe_release(T *&punk) {
+        if (punk != nullptr) {
+            punk->Release();
+            punk = nullptr;
+        }
+    }
+
+    void exit() {
+        CoTaskMemFree(pwfx);
+        safe_release(pEnumerator);
+        safe_release(pDevice);
+        safe_release(pAudioClient);
+        safe_release(pCaptureClient);
+    }
+
+    QList<float> gY() {
+        return mYL;
+    }
+
+    QList<float> gX() {
+        return mXL;
     }
 
     void set_status(bool status) {
-        m_status = status;
+        mStatus = status;
     }
-    HRESULT RecordAudioStream() const {
-        qDebug() << "Running";
+
+    void updateSeries() {
+        while (true) {
+            QThread::sleep(1);
+            qDebug() << "updating";
+
+            for (int i=0;i<3;i++) {
+                mYL[i] = pool[i];
+            }
+
+            emit dataChanged();
+        }
+    }
+
+    HRESULT processData() {
+        if (pwfx->wBitsPerSample!=32) {
+            return E_FAIL;
+        }
+        const auto numBytes = numFramesAvailable*pwfx->nBlockAlign;
+        const auto numSamples = numBytes / (pwfx->wBitsPerSample / 8);
+        std::move(pool.begin() + numSamples, pool.end(), pool.begin());
+        memcpy(pool.data() + pool.size() - numSamples, pData, numBytes);
+
+        return S_OK;
+    }
+
+    [[nodiscard]] HRESULT captureAudio() {
+        HRESULT hr;
         hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
         if (FAILED(hr)) {
             exit();
@@ -140,13 +189,6 @@ public:
             return hr;
         }
 
-        // Notify the audio sink which format to use.
-        //hr = pMySink->SetFormat(pwfx);
-        //if (FAILED(hr)) {
-        //    onFail();
-        //    return hr;
-        //}
-
         // Calculate the actual duration of the allocated buffer.
         hnsActualDuration = static_cast<double>(ref_times_per_s) *
                             bufferFrameCount / pwfx->nSamplesPerSec;
@@ -190,14 +232,11 @@ public:
                 if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
                     pData = NULL; // Tell CopyData to write silence.
                 } else {
-                    qDebug() << numFramesAvailable;
-                }
-
-                // Copy the available capture data to the audio sink.
-
-                if (FAILED(hr)) {
-                    exit();
-                    return hr;
+                    hr = processData();
+                    if (FAILED(hr)) {
+                        exit();
+                        return hr;
+                    }
                 }
 
                 hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);

@@ -2,11 +2,15 @@ cmake_minimum_required(VERSION 3.16)
 
 project(WAV VERSION 0.1 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_PREFIX_PATH "C:\\Qt\\6.12.0\\mingw_64\\lib\\cmake")
+set(CMAKE_PREFIX_PATH "C:\\Qt\\6.12.0\\msvc2022_64\\lib\\cmake")
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Gui Sql Core QuickControls2 Concurrent)
+
+set(MKL_LINK "dynamic")
+set(MKL_THREADING "sequential")
 
 find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
 
@@ -15,12 +19,14 @@ qt_standard_project_setup(REQUIRES 6.10)
 qt_add_executable(appWAV
     main.cpp
 )
+target_compile_options(appWAV PUBLIC "/Zc:__cplusplus")
+add_compile_options(/Zc:__cplusplus)
 
 qt_add_qml_module(appWAV
     URI WAV
     QML_FILES
         Main.qml
-        SOURCES
+    SOURCES
         config.h
 )
 

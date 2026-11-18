@@ -7,9 +7,9 @@ qt_add_qml_module(${PROJECT_NAME}lib
         Overlay.qml
         SOURCES
         AudioCapture.h
-        AudioProcess.h
+        FFTProcess.h
 )
 
 target_link_libraries(${PROJECT_NAME}lib
-        PRIVATE Qt6::Gui Qt6::Core Qt6::Concurrent
+        PRIVATE Qt6::Gui Qt6::Core Qt6::Concurrent PUBLIC MKL::MKL
 )

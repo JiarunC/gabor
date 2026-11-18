@@ -24,34 +24,56 @@ Window {
 
         GraphsView {
             anchors.fill: parent
-            theme: GraphsTheme {
-                colorScheme: GraphsTheme.ColorScheme.Dark
-                seriesColors: ["#E0D080", "#B0A060"]
-                borderColors: ["#807040", "#706030"]
-                grid.mainColor: "#ccccff"
-                grid.subColor: "#eeeeff"
-                axisY.mainColor: "#ccccff"
-                axisY.subColor: "#eeeeff"
+            theme : GraphsTheme {
+                theme: GraphsTheme.Theme.UserDefined
+                backgroundColor: "transparent"
+                backgroundVisible: true
+                seriesColors: ["green"]
+                colorStyle: GraphsTheme.ColorStyle.Uniform
+                labelFont.family: "Lucida Handwriting"
+                labelFont.pointSize: 16
+                gridVisible: false
+                grid.mainColor: "ivory"
+                grid.subColor: "gray"
+                labelBackgroundColor: "black"
+                labelBackgroundVisible: false
+                labelBorderVisible: false
+                labelTextColor: "white"
+                multiHighlightColor: "green"
+                singleHighlightColor: "darkRed"
+                plotAreaBackgroundVisible: false
             }
-            axisX: BarCategoryAxis {
-                lineVisible: false
+
+
+
+            axisX: LogValueAxis {
+                min: 1
+                max: 512
             }
             axisY: ValueAxis {
-                min: -10
-                max: 10
+                min: 0
+                max: 512
             }
-            BarSeries {
-                barWidth: .1
-                BarSet {
-                    values: audio.gY
+
+            LineSeries {
+                id: line_series
+                color: "#00ff00"
+                joinStyle: Qt.RoundJoin
+                //GraphTransition {
+                //    GraphPointAnimation { duration: 10; easingCurve.type: Easing.OutCubic  }
+                //}
+                XYModelMapper {
+                    id: mapper
+                    model: audio.model
+                    series: line_series
+                    orientation: Qt.Horizontal
+                    ySection: 0
+                    xSection: 1
+                    count: 512
+
+
                 }
             }
         }
-
-
     }
-
-
-    property int common_padding: 6
-
 }

@@ -1,4 +1,7 @@
 #pragma once
+
+#define NOMINMAX
+
 #include <QObject>
 #include <QQmlEngine>
 #include <QDebug>
@@ -8,8 +11,13 @@
 #include <mmdeviceapi.h>
 #include <QtConcurrentRun>
 #include <QFuture>
-#include "AudioProcess.h"
+#include <bit>
 #include <QThread>
+#include <QRangeModel>
+#include <QRangeModelAdapter>
+#include "FFTProcess.h"
+#include <algorithm>
+#include <chrono>
 
 // https://learn.microsoft.com/en-us/windows/win32/coreaudio/capturing-a-stream
 
@@ -21,14 +29,21 @@ inline const IID IID_IAudioCaptureClient = __uuidof(IAudioCaptureClient);
 class AudioCapture : public QObject {
     Q_OBJECT
     QML_ELEMENT
+
+    using Adapter = decltype(QRangeModelAdapter(std::vector<std::vector<float>>{}));
+
     Q_PROPERTY(bool status WRITE set_status)
-    Q_PROPERTY(QList<float> gY READ gY NOTIFY dataChanged)
-    Q_PROPERTY(QList<float> gX READ gX NOTIFY dataChanged)
+    Q_PROPERTY(QAbstractItemModel* model READ model CONSTANT)
 private:
     bool mStatus = true;
-    QList<float> mYL = QList<float>(3,1);
-    QList<float> mXL = {1,2,3};
-    vector<float> pool = vector<float>(2048, 0);
+    unsigned mResolution;
+
+    // data race (but it's fine)
+    std::vector<float> pool;
+
+
+    std::vector<std::vector<float>> yx;
+    Adapter mAdapter = Adapter(std::cref(yx));
 
     /* Used by the capture thread */
     signed long long ref_times_per_s = 10000000;
@@ -47,16 +62,27 @@ private:
     DWORD flags;
     HANDLE handle = CreateEvent(
         nullptr,
-        true,
         false,
-        TEXT("AudioCallback")
+        false,
+        nullptr
     );
 public:
     signals:
-    void dataChanged();
 public:
 
-    explicit AudioCapture(QObject *parent = nullptr) : QObject(parent) {
+    explicit AudioCapture(const unsigned resolution = 1024, QObject *parent = nullptr) : QObject(parent), mResolution(resolution) {
+        assert(resolution >= 1024 && std::has_single_bit(resolution));
+
+        pool = std::vector<float>(resolution, 0);
+        yx = std::vector<std::vector<float>>(2);
+        yx[0] = std::vector<float>(resolution/2+1, .5);
+        yx[1] = std::vector<float>(resolution/2+1, 0);
+        float counter = 1;
+        for (auto &i : yx[1]) {
+            i = counter;
+            counter++;
+        }
+
         QFuture<void> future1 = QtConcurrent::run(&AudioCapture::captureAudio, this);
         QFuture<void> future2 = QtConcurrent::run(&AudioCapture::updateSeries, this);
     }
@@ -79,41 +105,56 @@ public:
         safe_release(pDevice);
         safe_release(pAudioClient);
         safe_release(pCaptureClient);
-    }
 
-    QList<float> gY() {
-        return mYL;
-    }
-
-    QList<float> gX() {
-        return mXL;
+        CloseHandle(handle);
     }
 
     void set_status(bool status) {
         mStatus = status;
     }
 
+    [[nodiscard]] QAbstractItemModel* model() const {
+        return mAdapter.model();
+    }
+
     void updateSeries() {
         while (true) {
             QThread::sleep(1);
-            qDebug() << "updating";
+            auto start = std::chrono::high_resolution_clock::now();
+            FFTProcess::AFFT(pool, yx[0]);
 
-            for (int i=0;i<3;i++) {
-                mYL[i] = pool[i];
-            }
+            auto stop = std::chrono::high_resolution_clock::now();
 
-            emit dataChanged();
+            auto duration =
+                duration_cast<std::chrono::microseconds>(
+                    stop - start);
+
+            qDebug() << duration << "micro";
+
+            mAdapter.assign(std::cref(yx));
         }
     }
 
     HRESULT processData() {
+        // only works for current device
+        // does not consider Buffer overflow
         if (pwfx->wBitsPerSample!=32) {
             return E_FAIL;
         }
         const auto numBytes = numFramesAvailable*pwfx->nBlockAlign;
         const auto numSamples = numBytes / (pwfx->wBitsPerSample / 8);
-        std::move(pool.begin() + numSamples, pool.end(), pool.begin());
-        memcpy(pool.data() + pool.size() - numSamples, pData, numBytes);
+        const auto numCombinedSamples = numSamples / pwfx->nChannels;
+        std::move(pool.begin() + numCombinedSamples, pool.end(), pool.begin());
+        if (pwfx->nChannels == 2) {
+            std::vector<float> tmp(numSamples);
+            memcpy(tmp.data(), pData, numBytes);
+            for (auto i=0;i<numCombinedSamples;i++) {
+                pool[pool.size()-numCombinedSamples+i] = (tmp[2*i] + tmp[2*i+1])/2;
+            }
+        } else {
+            assert(numSamples == numCombinedSamples);
+            memcpy(pool.data() + pool.size() - numCombinedSamples, pData, numBytes);
+        }
 
         return S_OK;
     }
@@ -173,6 +214,10 @@ public:
         }
 
         hr = pAudioClient->SetEventHandle(handle);
+        if (FAILED(hr)) {
+            exit();
+            return hr;
+        }
 
         // Get the size of the allocated buffer.
         hr = pAudioClient->GetBufferSize(&bufferFrameCount);

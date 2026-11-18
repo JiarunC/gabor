@@ -4,11 +4,6 @@
 #include <QDebug>
 #include <iostream>
 #include "config.h"
-#include "mkl.h"
-
-void test() {
-    
-}
 
 int main(int argc, char *argv[])
 {
@@ -28,8 +23,6 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
     engine.loadFromModule("WAV", "Main");
-
-    qDebug() << "Starting";
 
     return QGuiApplication::exec();
 }

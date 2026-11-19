@@ -59,9 +59,9 @@ Window {
                 id: line_series
                 color: "#00ff00"
                 joinStyle: Qt.RoundJoin
-                //GraphTransition {
-                //    GraphPointAnimation { duration: 10; easingCurve.type: Easing.OutCubic  }
-                //}
+                GraphTransition {
+                    GraphPointAnimation { duration: 24; easingCurve.type: Easing.OutCubic  }
+                }
                 XYModelMapper {
                     id: mapper
                     model: audio.model

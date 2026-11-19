@@ -18,6 +18,9 @@
 #include "FFTProcess.h"
 #include <algorithm>
 #include <chrono>
+#include <QChronoTimer>
+#include <QMutex>
+#include <QMutexLocker>
 
 // https://learn.microsoft.com/en-us/windows/win32/coreaudio/capturing-a-stream
 
@@ -38,10 +41,11 @@ private:
     bool mStatus = true;
     unsigned mResolution;
 
-    // data race (but it's fine)
+    QChronoTimer* timer = nullptr;
+    FFTProcess* fftp = new FFTProcess(this);
+
+    QMutex mutex;
     std::vector<float> pool;
-
-
     std::vector<std::vector<float>> yx;
     Adapter mAdapter = Adapter(std::cref(yx));
 
@@ -73,6 +77,11 @@ public:
     explicit AudioCapture(const unsigned resolution = 1024, QObject *parent = nullptr) : QObject(parent), mResolution(resolution) {
         assert(resolution >= 1024 && std::has_single_bit(resolution));
 
+        // GUI thread
+        timer = new QChronoTimer(std::chrono::nanoseconds(30000000), this);
+        connect(timer, &QChronoTimer::timeout, this, &AudioCapture::updateSeries);
+        timer->start();
+
         pool = std::vector<float>(resolution, 0);
         yx = std::vector<std::vector<float>>(2);
         yx[0] = std::vector<float>(resolution/2+1, .5);
@@ -83,8 +92,8 @@ public:
             counter++;
         }
 
+        // separate thread
         QFuture<void> future1 = QtConcurrent::run(&AudioCapture::captureAudio, this);
-        QFuture<void> future2 = QtConcurrent::run(&AudioCapture::updateSeries, this);
     }
 
     ~AudioCapture() override {
@@ -118,24 +127,14 @@ public:
     }
 
     void updateSeries() {
-        while (true) {
-            QThread::sleep(1);
-            auto start = std::chrono::high_resolution_clock::now();
-            FFTProcess::AFFT(pool, yx[0]);
-
-            auto stop = std::chrono::high_resolution_clock::now();
-
-            auto duration =
-                duration_cast<std::chrono::microseconds>(
-                    stop - start);
-
-            qDebug() << duration << "micro";
-
-            mAdapter.assign(std::cref(yx));
-        }
+        QMutexLocker locker(&mutex);
+        fftp->AFFT(pool, yx[0]);
+        mAdapter.assign(std::cref(yx));
     }
 
     HRESULT processData() {
+
+        QMutexLocker locker(&mutex);
         // only works for current device
         // does not consider Buffer overflow
         if (pwfx->wBitsPerSample!=32) {
@@ -161,6 +160,8 @@ public:
 
     [[nodiscard]] HRESULT captureAudio() {
         HRESULT hr;
+
+        // never uninitialized
         hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
         if (FAILED(hr)) {
             exit();

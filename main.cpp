@@ -1,8 +1,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-#include <QDebug>
-#include <iostream>
 #include "config.h"
 
 int main(int argc, char *argv[])

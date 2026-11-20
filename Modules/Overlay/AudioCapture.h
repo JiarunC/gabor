@@ -133,6 +133,16 @@ public:
         fftp = new FFTProcess(this, mResolution);
         pool = std::vector<float>(mResolution, 0);
 
+        auto outputSize = mResolution/2+1;
+        yx = std::vector<std::vector<float>>(2);
+        yx[0] = std::vector<float>(outputSize, 0);
+        yx[1] = std::vector<float>(outputSize, 0);
+        float counter = 1;
+        for (auto &i : yx[1]) {
+            i = counter;
+            counter++;
+        }
+
         // GUI thread
         timer = new QChronoTimer(std::chrono::nanoseconds(30000000), this);
         connect(timer, &QChronoTimer::timeout, this, &AudioCapture::updateSeries);
@@ -142,42 +152,6 @@ public:
         connect(&watcher, &QFutureWatcher<void>::finished, this, &AudioCapture::uninitialize);
         QFuture<void> future = QtConcurrent::run(&AudioCapture::captureAudio, this);
         watcher.setFuture(future);
-    }
-
-    HRESULT establishSimplification() {
-        auto outputSize = mResolution/2+1;
-        yx = std::vector<std::vector<float>>(3);
-        yx[0] = std::vector<float>(outputSize, 0);
-        yx[1] = std::vector<float>(outputSize, 0);
-        float counter = 1;
-        for (auto &i : yx[1]) {
-            i = counter;
-            counter++;
-        }
-
-        auto sr = pwfx->nSamplesPerSec;
-        auto cutOff = 4500 / (sr/mResolution);
-        assert(cutOff < 250);
-        if (!cutOff%2) {
-            cutOff++;
-        }
-
-        auto index = cutOff;
-        auto skips = 1;
-        while (index<yx[1].size()) {
-            index++;
-            if (index >= yx[1].size()) {
-                break;
-            }
-            if (index+skips >= yx[1].size()) {
-                yx[1].erase(yx[1].begin()+index,yx[1].end()-1);
-                break;
-            }
-            yx[1].erase(yx[1].begin()+index,yx[1].begin()+index+skips);
-        }
-
-
-        return S_OK;
     }
 
     void uninitialize() {
@@ -191,22 +165,6 @@ public:
     void updateSeries() {
         QMutexLocker locker(&mutex);
         fftp->AFFT(pool, yx[0]);
-
-        // readjust db level
-        //
-        // my design to keep lower frequencies more detailed
-        // max of 300 points to support good spline performance
-
-        // sample rate / resolution = bin
-
-        // resolution/2 + 1, current
-        // is even
-        // keep first 4500/(sr/resolution) make even
-        // rest is even
-        // 1, rid 1
-        // 3, rid 2 ...
-
-
         mAdapter.assign(std::cref(yx));
     }
 
@@ -336,12 +294,6 @@ public:
                             bufferFrameCount / pwfx->nSamplesPerSec;
 
         hr = pAudioClient->Start(); // Start recording.
-        if (FAILED(hr)) {
-            exit();
-            return hr;
-        }
-
-        hr = establishSimplification();
         if (FAILED(hr)) {
             exit();
             return hr;

@@ -21,6 +21,7 @@
 #include <QChronoTimer>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QFutureWatcher>
 
 // https://learn.microsoft.com/en-us/windows/win32/coreaudio/capturing-a-stream
 
@@ -51,6 +52,8 @@ private:
     std::vector<std::vector<float>> yx;
     Adapter mAdapter = Adapter(std::cref(yx));
 
+    QFutureWatcher<void> watcher;
+
     /* Used by the capture thread */
     signed long long ref_times_per_s = 10000000;
     REFERENCE_TIME hnsRequestedDuration = 10000000;
@@ -74,12 +77,13 @@ private:
     );
 public:
     signals:
+    void uninitialized();
 public:
 
     explicit AudioCapture(QObject *parent = nullptr) : QObject(parent) {}
 
     ~AudioCapture() override {
-        exit();
+        exit(true);
     }
 
     template<class T>
@@ -90,14 +94,25 @@ public:
         }
     }
 
-    void exit() {
+    void exit(bool destructor = false) {
+        // handles null
+
         CoTaskMemFree(pwfx);
+        pwfx = nullptr;
         safe_release(pEnumerator);
         safe_release(pDevice);
         safe_release(pAudioClient);
         safe_release(pCaptureClient);
 
-        CloseHandle(handle);
+        // does not handle null
+        if (!handle) {
+            CloseHandle(handle);
+        }
+
+        // only on thread that initialized
+        if (!destructor) {
+            CoUninitialize();
+        }
     }
 
     void set_status(bool status) {
@@ -117,14 +132,6 @@ public:
     void initialize() {
         fftp = new FFTProcess(this, mResolution);
         pool = std::vector<float>(mResolution, 0);
-        yx = std::vector<std::vector<float>>(2);
-        yx[0] = std::vector<float>(mResolution/2+1, 0);
-        yx[1] = std::vector<float>(mResolution/2+1, 0);
-        float counter = 1;
-        for (auto &i : yx[1]) {
-            i = counter;
-            counter++;
-        }
 
         // GUI thread
         timer = new QChronoTimer(std::chrono::nanoseconds(30000000), this);
@@ -132,7 +139,49 @@ public:
         timer->start();
 
         // separate thread
+        connect(&watcher, &QFutureWatcher<void>::finished, this, &AudioCapture::uninitialize);
         QFuture<void> future = QtConcurrent::run(&AudioCapture::captureAudio, this);
+        watcher.setFuture(future);
+    }
+
+    HRESULT establishSimplification() {
+        auto outputSize = mResolution/2+1;
+        yx = std::vector<std::vector<float>>(3);
+        yx[0] = std::vector<float>(outputSize, 0);
+        yx[1] = std::vector<float>(outputSize, 0);
+        float counter = 1;
+        for (auto &i : yx[1]) {
+            i = counter;
+            counter++;
+        }
+
+        auto sr = pwfx->nSamplesPerSec;
+        auto cutOff = 4500 / (sr/mResolution);
+        assert(cutOff < 250);
+        if (!cutOff%2) {
+            cutOff++;
+        }
+
+        auto index = cutOff;
+        auto skips = 1;
+        while (index<yx[1].size()) {
+            index++;
+            if (index >= yx[1].size()) {
+                break;
+            }
+            if (index+skips >= yx[1].size()) {
+                yx[1].erase(yx[1].begin()+index,yx[1].end()-1);
+                break;
+            }
+            yx[1].erase(yx[1].begin()+index,yx[1].begin()+index+skips);
+        }
+
+
+        return S_OK;
+    }
+
+    void uninitialize() {
+        emit uninitialized();
     }
 
     [[nodiscard]] QAbstractItemModel* model() const {
@@ -142,6 +191,22 @@ public:
     void updateSeries() {
         QMutexLocker locker(&mutex);
         fftp->AFFT(pool, yx[0]);
+
+        // readjust db level
+        //
+        // my design to keep lower frequencies more detailed
+        // max of 300 points to support good spline performance
+
+        // sample rate / resolution = bin
+
+        // resolution/2 + 1, current
+        // is even
+        // keep first 4500/(sr/resolution) make even
+        // rest is even
+        // 1, rid 1
+        // 3, rid 2 ...
+
+
         mAdapter.assign(std::cref(yx));
     }
 
@@ -149,22 +214,40 @@ public:
 
         QMutexLocker locker(&mutex);
         // only works for current device
-        // does not consider Buffer overflow
         if (pwfx->wBitsPerSample!=32) {
             return E_FAIL;
         }
+        const auto nChannels = pwfx->nChannels;
         const auto numBytes = numFramesAvailable*pwfx->nBlockAlign;
         const auto numSamples = numBytes / (pwfx->wBitsPerSample / 8);
-        const auto numCombinedSamples = numSamples / pwfx->nChannels;
+        const auto numCombinedSamples = numSamples / nChannels;
+
+        // in buffer > held buffer
+        if (numCombinedSamples >= mResolution) {
+            std::vector<float> tmp(nChannels*mResolution);
+            memcpy(tmp.data(), pData+numSamples-nChannels*mResolution, nChannels*mResolution*sizeof(float));
+            for (auto i=0;i<mResolution;i++) {
+                float sum = 0;
+                for (auto j=0;j<nChannels;j++) {
+                    sum += tmp[nChannels*i+j];
+                }
+                pool[i] = sum/nChannels;
+            }
+            return S_OK;
+        }
+
         std::move(pool.begin() + numCombinedSamples, pool.end(), pool.begin());
-        if (pwfx->nChannels == 2) {
+        if (nChannels > 1) {
             std::vector<float> tmp(numSamples);
             memcpy(tmp.data(), pData, numBytes);
             for (auto i=0;i<numCombinedSamples;i++) {
-                pool[pool.size()-numCombinedSamples+i] = (tmp[2*i] + tmp[2*i+1])/2;
+                float sum = 0;
+                for (auto j=0;j<nChannels;j++) {
+                    sum += tmp[nChannels*i+j];
+                }
+                pool[pool.size()-numCombinedSamples+i] = sum/nChannels;
             }
         } else {
-            assert(numSamples == numCombinedSamples);
             memcpy(pool.data() + pool.size() - numCombinedSamples, pData, numBytes);
         }
 
@@ -258,15 +341,28 @@ public:
             return hr;
         }
 
-        while (true) {
+        hr = establishSimplification();
+        if (FAILED(hr)) {
+            exit();
+            return hr;
+        }
+
+        while (mStatus) {
             DWORD waitResult;
 
             waitResult = WaitForSingleObject(
                 handle,
-                INFINITE);
+                200);
 
+            // on timeout restart wait
+            // so that when mStatus changes
+            // the function returns
+            if (waitResult == WAIT_TIMEOUT) {
+                continue;
+            }
+
+            // other errors
             if (waitResult != WAIT_OBJECT_0) {
-                std::cout << (GetLastError());
                 exit();
                 return 0;
             }

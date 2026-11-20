@@ -23,6 +23,7 @@ ApplicationWindow {
             if (item) {
                 item.closing.connect(function () {
                     Qt.callLater(function () {
+                        console.log("deleting")
                         app_loader.sourceComponent = undefined;
                     });
                 });
@@ -59,7 +60,7 @@ ApplicationWindow {
                 font.family: Config.input_font
                 width: 80
                 anchors.horizontalCenter: parent.horizontalCenter
-                model: ["1024", "4096", "16384", "32768"]
+                model: ["1024", "2048", "4096"]
                 onActivated: {
                     launcher_window.overlay_resolution = parseInt(currentText)
                 }
@@ -76,8 +77,9 @@ ApplicationWindow {
                     onClicked: {
                         if (!app_loader.sourceComponent) {
                             app_loader.sourceComponent = overlay_component
-                        } else if (app_loader.item) {
-                            app_loader.item.close()
+                        } else if (app_loader.sourceComponent === overlay_component) {
+                            // destroy but not close, overlay closes itself
+                            app_loader.item.uninitialize()
                         }
                     }
                 }

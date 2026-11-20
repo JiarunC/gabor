@@ -8,6 +8,8 @@ import QtGraphs
 
 Window {
     id: overlay_window
+    x:0
+    y:0
     width: 800
     height: 400
     visible: true
@@ -19,6 +21,18 @@ Window {
     AudioCapture {
         id: audio
         resolution: process_resolution
+    }
+
+    Connections {
+        target: audio
+        function onUninitialized() {
+            console.log("closing")
+            overlay_window.close()
+        }
+    }
+
+    function uninitialize() {
+        audio.status = false
     }
 
     Rectangle{
@@ -47,8 +61,6 @@ Window {
                 plotAreaBackgroundVisible: false
             }
 
-
-
             axisX: LogValueAxis {
                 min: 1
                 max: process_resolution/2
@@ -58,8 +70,8 @@ Window {
                 max: process_resolution/2
             }
 
-            SplineSeries {
-                optimized: true
+            LineSeries {
+                // optimized: true
                 id: line_series
                 color: "#00ff00"
                 GraphTransition {
@@ -72,7 +84,7 @@ Window {
                     orientation: Qt.Horizontal
                     ySection: 0
                     xSection: 1
-                    count: process_resolution/2/2
+                    count: process_resolution/2
 
 
                 }

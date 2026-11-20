@@ -3,9 +3,9 @@
 ## ISSUES
 
     ProcessData
-    Initialize
-    Closing and Destruction
-    Reuse of overlay
+    [x] Initialize
+    [x] Closing and Destruction
+    [x] Reuse of overlay
     Address device change
     Resolution
     Display

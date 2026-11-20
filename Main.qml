@@ -2,26 +2,29 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
 import Overlay
+import Config
 
 ApplicationWindow {
     id: launcher_window
     color: Config.bg_color
-    minimumWidth: 720
-    minimumHeight: 405
-    maximumWidth: 720
-    maximumHeight: 405
+    minimumWidth: 256
+    minimumHeight: 358
+    maximumWidth: 256
+    maximumHeight: 358
     visible: true
     title: qsTr("Launcher")
+
+    property int overlay_resolution: 1024
 
     Loader {
         id: app_loader
         sourceComponent: undefined
         onLoaded: {
             if (item) {
-                launcher_window.visible = false
                 item.closing.connect(function () {
-                    app_loader.sourceComponent = undefined;
-                    launcher_window.visible = true
+                    Qt.callLater(function () {
+                        app_loader.sourceComponent = undefined;
+                    });
                 });
             }
         }
@@ -29,6 +32,7 @@ ApplicationWindow {
 
     Component {
         Overlay {
+            process_resolution: launcher_window.overlay_resolution
         }
         id: overlay_component
     }
@@ -42,25 +46,45 @@ ApplicationWindow {
         border.color: "cyan"
         visible: true
 
-        Row {
+
+
+        Column {
             spacing: 24
             anchors.centerIn: parent
 
+            CustomComboBox {
+                id: resolution_combo_box
+                visible: !app_loader.item
+                alternate_colors: true
+                font.family: Config.input_font
+                width: 80
+                anchors.horizontalCenter: parent.horizontalCenter
+                model: ["1024", "4096", "16384", "32768"]
+                onActivated: {
+                    launcher_window.overlay_resolution = parseInt(currentText)
+                }
+            }
+
             Rectangle {
-                width: 50
-                height: 50
+                width: 80
+                height: 80
+                anchors.horizontalCenter: parent.horizontalCenter
                 radius: Config.common_container_radius
-                color: "#6393c3"
+                color: "#3d4145"
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
-                        app_loader.sourceComponent = overlay_component
+                        if (!app_loader.sourceComponent) {
+                            app_loader.sourceComponent = overlay_component
+                        } else if (app_loader.item) {
+                            app_loader.item.close()
+                        }
                     }
                 }
-                //Image {
-                //    source: "rc/images/GS2.png"
-                //    anchors.fill: parent
-                //}
+                Image {
+                    source: "rc/images/CL.png"
+                    anchors.fill: parent
+                }
             }
         }
     }

@@ -36,13 +36,15 @@ class AudioCapture : public QObject {
     using Adapter = decltype(QRangeModelAdapter(std::vector<std::vector<float>>{}));
 
     Q_PROPERTY(bool status WRITE set_status)
+    Q_PROPERTY(unsigned resolution WRITE set_resolution)
     Q_PROPERTY(QAbstractItemModel* model READ model CONSTANT)
 private:
     bool mStatus = true;
     unsigned mResolution;
+    bool mInitialized = false;
 
     QChronoTimer* timer = nullptr;
-    FFTProcess* fftp = new FFTProcess(this);
+    FFTProcess* fftp = nullptr;
 
     QMutex mutex;
     std::vector<float> pool;
@@ -74,27 +76,7 @@ public:
     signals:
 public:
 
-    explicit AudioCapture(const unsigned resolution = 1024, QObject *parent = nullptr) : QObject(parent), mResolution(resolution) {
-        assert(resolution >= 1024 && std::has_single_bit(resolution));
-
-        // GUI thread
-        timer = new QChronoTimer(std::chrono::nanoseconds(30000000), this);
-        connect(timer, &QChronoTimer::timeout, this, &AudioCapture::updateSeries);
-        timer->start();
-
-        pool = std::vector<float>(resolution, 0);
-        yx = std::vector<std::vector<float>>(2);
-        yx[0] = std::vector<float>(resolution/2+1, .5);
-        yx[1] = std::vector<float>(resolution/2+1, 0);
-        float counter = 1;
-        for (auto &i : yx[1]) {
-            i = counter;
-            counter++;
-        }
-
-        // separate thread
-        QFuture<void> future1 = QtConcurrent::run(&AudioCapture::captureAudio, this);
-    }
+    explicit AudioCapture(QObject *parent = nullptr) : QObject(parent) {}
 
     ~AudioCapture() override {
         exit();
@@ -120,6 +102,37 @@ public:
 
     void set_status(bool status) {
         mStatus = status;
+    }
+
+    void set_resolution(const unsigned resolution) {
+        qDebug() << resolution;
+        assert(std::has_single_bit(resolution) && resolution>=1024);
+        mResolution = resolution;
+        if (!mInitialized) {
+            initialize();
+            mInitialized = true;
+        }
+    }
+
+    void initialize() {
+        fftp = new FFTProcess(this, mResolution);
+        pool = std::vector<float>(mResolution, 0);
+        yx = std::vector<std::vector<float>>(2);
+        yx[0] = std::vector<float>(mResolution/2+1, 0);
+        yx[1] = std::vector<float>(mResolution/2+1, 0);
+        float counter = 1;
+        for (auto &i : yx[1]) {
+            i = counter;
+            counter++;
+        }
+
+        // GUI thread
+        timer = new QChronoTimer(std::chrono::nanoseconds(30000000), this);
+        connect(timer, &QChronoTimer::timeout, this, &AudioCapture::updateSeries);
+        timer->start();
+
+        // separate thread
+        QFuture<void> future = QtConcurrent::run(&AudioCapture::captureAudio, this);
     }
 
     [[nodiscard]] QAbstractItemModel* model() const {

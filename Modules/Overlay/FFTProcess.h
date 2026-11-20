@@ -17,15 +17,14 @@ class FFTProcess : public QObject {
     Q_OBJECT
 
 private:
-    const MKL_LONG N = 1024;
+    const MKL_LONG N;
     std::vector<float>* weights;
     DFTI_DESCRIPTOR_HANDLE handle = nullptr;
 public:
-
-    explicit FFTProcess(QObject *parent = nullptr) : QObject(parent) {
+    explicit FFTProcess(QObject *parent = nullptr, MKL_LONG resolution = 1024) : QObject(parent), N(resolution) {
         weights = new std::vector<float>(N);
-        for (auto i=0;i<N;i++) {
-            weights->at(i) = 0.5 - 0.5 * std::cos((2* std::numbers::pi*i)/(N-1));
+        for (auto i = 0; i < N; i++) {
+            weights->at(i) = 0.5 - 0.5 * std::cos((2 * std::numbers::pi * i) / (N - 1));
         }
         qDebug() << "weights";
     }

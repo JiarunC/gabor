@@ -26,11 +26,14 @@ qt_add_qml_module(appWAV
     URI WAV
     QML_FILES
         Main.qml
-    SOURCES
-        config.h
+        CustomComboBox.qml
+    RESOURCES
+        rc/images/expand_all.png
+        rc/images/CL.png
 )
 
 add_subdirectory(Modules/Overlay)
+add_subdirectory(Modules/Config)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
@@ -44,7 +47,7 @@ set_target_properties(appWAV PROPERTIES
 )
 
 target_link_libraries(appWAV
-    PRIVATE Qt6::Gui Qt6::Sql Qt6::Core Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Overlaylibplugin PUBLIC MKL::MKL
+    PRIVATE Qt6::Gui Qt6::Sql Qt6::Core Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Overlaylibplugin Configlibplugin PUBLIC MKL::MKL
 )
 
 install(TARGETS appWAV

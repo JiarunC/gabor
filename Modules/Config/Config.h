@@ -34,10 +34,7 @@ public:
         //QFontDatabase::addApplicationFont(":/qt/qml/Leaves/rc/fonts/Nunito/static/Nunito-Bold.ttf");
         //QFontDatabase::addApplicationFont(":/qt/qml/Leaves/rc/fonts/Federo/Federo-Regular.ttf");
     }
-    static Config& instance() {
-        static Config _instance;
-        return _instance;
-    }
+
     static QString bg_color() {
         return "#282529";
     }

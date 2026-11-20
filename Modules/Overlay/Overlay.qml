@@ -14,8 +14,11 @@ Window {
     flags: Qt.NoDropShadowWindowHint | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput
     color: "transparent"
 
+    required property int process_resolution
+
     AudioCapture {
         id: audio
+        resolution: process_resolution
     }
 
     Rectangle{
@@ -48,19 +51,19 @@ Window {
 
             axisX: LogValueAxis {
                 min: 1
-                max: 512
+                max: process_resolution/2
             }
             axisY: ValueAxis {
                 min: 0
-                max: 512
+                max: process_resolution/2
             }
 
-            LineSeries {
+            SplineSeries {
+                optimized: true
                 id: line_series
                 color: "#00ff00"
-                joinStyle: Qt.RoundJoin
                 GraphTransition {
-                    GraphPointAnimation { duration: 24; easingCurve.type: Easing.OutCubic  }
+                    GraphPointAnimation { duration: 24; easingCurve.type: Easing.Linear  }
                 }
                 XYModelMapper {
                     id: mapper
@@ -69,7 +72,7 @@ Window {
                     orientation: Qt.Horizontal
                     ySection: 0
                     xSection: 1
-                    count: 512
+                    count: process_resolution/2/2
 
 
                 }

@@ -1,7 +1,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-#include "config.h"
 
 int main(int argc, char *argv[])
 {
@@ -10,9 +9,6 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName("WAV");
     QQuickStyle::setStyle("FluentWinUI3");
     QQmlApplicationEngine engine;
-
-    engine.setExternalSingletonInstance("Constants","Singleton",&Config::instance());
-    engine.loadFromModule("Constants", "Main");
 
     QObject::connect(
         &engine,

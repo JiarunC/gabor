@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 4.4.2)
 
 project(WAV VERSION 0.1 LANGUAGES CXX)
 
@@ -7,9 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_PREFIX_PATH "C:\\Qt\\6.12.0\\msvc2022_64\\lib\\cmake")
 
+include(InstallRequiredSystemLibraries)
+
 find_package(Qt6 REQUIRED COMPONENTS Quick Gui Sql Core QuickControls2 Concurrent)
 
-set(MKL_LINK "dynamic")
+set(MKL_LINK "static")
 set(MKL_THREADING "sequential")
 
 find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
@@ -30,6 +32,8 @@ qt_add_qml_module(appWAV
     RESOURCES
         rc/images/expand_all.png
         rc/images/CL.png
+        rc/fonts/Alice/Alice-Regular.ttf
+        rc/fonts/Baumans/Baumans-Regular.ttf
 )
 
 add_subdirectory(Modules/Overlay)
@@ -55,3 +59,9 @@ install(TARGETS appWAV
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+qt_generate_deploy_qml_app_script(
+        TARGET appWAV
+        OUTPUT_SCRIPT deploy_script
+)
+install(SCRIPT ${deploy_script})

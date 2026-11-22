@@ -27,7 +27,6 @@ public:
         for (auto i = 0; i < N; i++) {
             weights->at(i) = 0.5 - 0.5 * std::cos((2 * std::numbers::pi * i) / (N - 1));
         }
-        qDebug() << "weights";
     }
 
     ~FFTProcess() override {

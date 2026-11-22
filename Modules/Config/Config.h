@@ -29,10 +29,8 @@ class Config : public QObject {
 
 public:
     explicit Config(QObject *parent = nullptr) : QObject(parent) {
-        //QFontDatabase::addApplicationFont(":/qt/qml/Leaves/rc/fonts/Alice/Alice-Regular.ttf");
-        //QFontDatabase::addApplicationFont(":/qt/qml/Leaves/rc/fonts/Nunito/static/Nunito-Regular.ttf");
-        //QFontDatabase::addApplicationFont(":/qt/qml/Leaves/rc/fonts/Nunito/static/Nunito-Bold.ttf");
-        //QFontDatabase::addApplicationFont(":/qt/qml/Leaves/rc/fonts/Federo/Federo-Regular.ttf");
+        QFontDatabase::addApplicationFont(":/qt/qml/appWAV/rc/fonts/Alice/Alice-Regular.ttf");
+        QFontDatabase::addApplicationFont(":/qt/qml/appWAV/rc/fonts/Baumans/Baumans-Regular.ttf");
     }
 
     static QString bg_color() {
@@ -57,7 +55,7 @@ public:
         return "Alice";
     }
     static QString info_font() {
-        return "Nunito";
+        return "Baumans";
     }
     static QString primary_text_color() {
         return "ivory";

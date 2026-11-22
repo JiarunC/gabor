@@ -10,23 +10,26 @@ Window {
     id: overlay_window
     x:0
     y:0
-    width: 1600
-    height: 800
+    width: Screen.desktopAvailableWidth
+    height: Screen.desktopAvailableHeight
     visible: true
     flags: Qt.NoDropShadowWindowHint | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput
     color: "transparent"
 
     required property int process_resolution
+    property int process_interval
+    property int process_target_points
 
     AudioCapture {
         id: audio
         resolution: process_resolution
+        updateInterval: process_interval
+        nTargetPoints: process_target_points
     }
 
     Connections {
         target: audio
         function onUninitialized() {
-            console.log("closing")
             overlay_window.close()
         }
     }
@@ -61,32 +64,34 @@ Window {
                 plotAreaBackgroundVisible: false
             }
 
-            axisX: ValueAxis {
-                min: 1
-                max: 300
+            axisX: LogValueAxis {
+                min: 20
+                max: 20000
+                base: 10
             }
             axisY: ValueAxis {
                 min: 0
                 max: 80
             }
 
-            SplineSeries {
-                // optimized: true
-                id: line_series
-                color: "#00ff00"
-                GraphTransition {
-                    GraphPointAnimation { duration: 85; easingCurve.type: Easing.Linear  }
-                }
-                XYModelMapper {
-                    id: mapper
-                    model: audio.model
-                    series: line_series
-                    orientation: Qt.Horizontal
-                    ySection: 0
-                    xSection: 1
-                    count: 100
+            AreaSeries {
+                id: area_series
+                color: "#4000ff00"       // Semi-transparent green fill
+                borderColor: "#00ff00"   // Solid green top border
+                borderWidth: 2
 
-
+                upperSeries: LineSeries {
+                    // optimized: true
+                    id: line_series
+                    XYModelMapper {
+                        id: mapper
+                        model: audio.model
+                        series: line_series
+                        orientation: Qt.Horizontal
+                        ySection: 0
+                        xSection: 1
+                        count: 200
+                    }
                 }
             }
         }

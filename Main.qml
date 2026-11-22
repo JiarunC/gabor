@@ -16,6 +16,8 @@ ApplicationWindow {
     title: qsTr("Launcher")
 
     property int overlay_resolution: 1024
+    property int overlay_interval: 80
+    property int overlay_target_points: 55
 
     Loader {
         id: app_loader
@@ -34,6 +36,8 @@ ApplicationWindow {
     Component {
         Overlay {
             process_resolution: launcher_window.overlay_resolution
+            process_interval: launcher_window.overlay_interval
+            process_target_points: launcher_window.overlay_target_points
         }
         id: overlay_component
     }
@@ -52,19 +56,52 @@ ApplicationWindow {
 
 
         Column {
-            spacing: 24
+            spacing: 12
             anchors.centerIn: parent
 
             CustomComboBox {
                 id: resolution_combo_box
-                visible: !app_loader.item
                 alternate_colors: false
-                font.family: Config.input_font
+                font.family: Config.info_font
                 width: 80
                 anchors.horizontalCenter: parent.horizontalCenter
                 model: ["1024", "2048", "4096", "8192", "16384", "32768"]
                 onActivated: {
                     launcher_window.overlay_resolution = parseInt(currentText)
+                }
+            }
+
+            Label {
+                font.family: Config.info_font
+                text: interval_slider.value
+            }
+
+            Slider {
+                font.family: Config.info_font
+                id: interval_slider
+                from: 30
+                value: 80
+                to: 1000
+                stepSize: 1
+
+                onMoved : {
+                    launcher_window.overlay_interval = value;
+                }
+            }
+
+            Label {
+                text: target_points_slider.value
+            }
+
+            Slider {
+                id: target_points_slider
+                from: 50
+                value: 60
+                to: 200
+                stepSize: 1
+
+                onMoved : {
+                    launcher_window.overlay_target_points = value;
                 }
             }
 

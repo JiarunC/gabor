@@ -29,15 +29,15 @@ class Config : public QObject {
 
 public:
     explicit Config(QObject *parent = nullptr) : QObject(parent) {
-        QFontDatabase::addApplicationFont(":/qt/qml/appWAV/rc/fonts/Alice/Alice-Regular.ttf");
-        QFontDatabase::addApplicationFont(":/qt/qml/appWAV/rc/fonts/Baumans/Baumans-Regular.ttf");
+        QFontDatabase::addApplicationFont(":/qt/qml/WAV/rc/fonts/Alice/Alice-Regular.ttf");
+        QFontDatabase::addApplicationFont(":/qt/qml/WAV/rc/fonts/Baumans/Baumans-Regular.ttf");
     }
 
     static QString bg_color() {
         return "#282529";
     }
     static int common_margin() {
-        return 50;
+        return 36;
     }
     static int common_padding() {
         return 6;
@@ -46,10 +46,10 @@ public:
         return 6;
     }
     static int common_container_radius() {
-        return 10;
+        return 18;
     }
     static int common_element_height() {
-        return 20;
+        return 24;
     }
     static QString label_font() {
         return "Alice";

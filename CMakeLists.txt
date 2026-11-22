@@ -31,7 +31,7 @@ qt_add_qml_module(appWAV
         CustomComboBox.qml
     RESOURCES
         rc/images/expand_all.png
-        rc/images/CL.png
+        rc/images/wave.png
         rc/fonts/Alice/Alice-Regular.ttf
         rc/fonts/Baumans/Baumans-Regular.ttf
 )

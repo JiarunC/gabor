@@ -18,109 +18,263 @@ ApplicationWindow {
     property int overlay_resolution: 1024
     property int overlay_interval: 80
     property int overlay_target_points: 55
+    property var overlay_instance: null
 
-    Loader {
-        id: app_loader
-        sourceComponent: undefined
-        onLoaded: {
-            if (item) {
-                item.closing.connect(function () {
-                    Qt.callLater(function () {
-                        app_loader.sourceComponent = undefined;
+    function toggleOverlay() {
+        if (!overlay_instance) {
+            overlay_instance = overlay_component.createObject(null, {
+                process_resolution: Qt.binding(function() { return launcher_window.overlay_resolution; }),
+                process_interval: Qt.binding(function() { return launcher_window.overlay_interval; }),
+                process_target_points: Qt.binding(function() { return launcher_window.overlay_target_points; })
+            });
+            if (overlay_instance) {
+                overlay_instance.closing.connect(function() {
+                    var inst = overlay_instance;
+                    overlay_instance = null;
+                    Qt.callLater(function() {
+                        if (inst) {
+                            inst.destroy();
+                        }
                     });
                 });
             }
+        } else {
+            overlay_instance.uninitialize();
+        }
+    }
+
+    onClosing: {
+        if (overlay_instance) {
+            overlay_instance.close();
+            overlay_instance.destroy();
+            overlay_instance = null;
         }
     }
 
     Component {
+        id: overlay_component
         Overlay {
             process_resolution: launcher_window.overlay_resolution
             process_interval: launcher_window.overlay_interval
             process_target_points: launcher_window.overlay_target_points
         }
-        id: overlay_component
     }
 
+    // Outer matte frame using Config colors
     Rectangle {
+        id: outer_card
         anchors.centerIn: parent
         width: parent.width - Config.common_margin
         height: parent.height - Config.common_margin
-        radius: 18
-        gradient: Gradient {
-            GradientStop { position: .3; color: "#005B5E12" }
-            GradientStop { position: 1; color: "#952e94" }
-        }
-        visible: true
+        radius: Config.common_container_radius
+        color: Config.secondary_cool_bg_color
+        border.width: 1
+        border.color: Config.secondary_cool_bg_color
 
+        // Inner recessed matte container
+        Rectangle {
+            id: inner_card
+            anchors.fill: parent
+            anchors.margins: Config.common_padding
+            radius: Config.common_container_radius - 4
+            color: Qt.darker(Config.cool_bg_color, 2)
+            border.width: 1
+            border.color: Config.secondary_cool_bg_color
 
+            Column {
+                spacing: 12
+                anchors.centerIn: parent
+                width: parent.width - 28
 
-        Column {
-            spacing: 12
-            anchors.centerIn: parent
-
-            CustomComboBox {
-                id: resolution_combo_box
-                alternate_colors: false
-                font.family: Config.info_font
-                width: 80
-                anchors.horizontalCenter: parent.horizontalCenter
-                model: ["1024", "2048", "4096", "8192", "16384", "32768"]
-                onActivated: {
-                    launcher_window.overlay_resolution = parseInt(currentText)
+                CustomComboBox {
+                    id: resolution_combo_box
+                    alternate_colors: false
+                    font.family: Config.info_font
+                    font.pixelSize: 13
+                    width: 108
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    model: ["1024", "2048", "4096", "8192", "16384", "32768"]
+                    onActivated: {
+                        launcher_window.overlay_resolution = parseInt(currentText)
+                    }
                 }
-            }
 
-            Label {
-                font.family: Config.info_font
-                text: interval_slider.value
-            }
+                Column {
+                    width: parent.width
+                    spacing: 4
 
-            Slider {
-                font.family: Config.info_font
-                id: interval_slider
-                from: 30
-                value: 80
-                to: 1000
-                stepSize: 1
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 6
+                        Label {
+                            font.family: Config.info_font
+                            font.pixelSize: 12
+                            color: Config.primary_text_color
+                            text: qsTr("Interval")
+                        }
+                        Label {
+                            font.family: Config.info_font
+                            font.pixelSize: 13
+                            color: Config.vibrant_cool_text_color
+                            text: Math.round(interval_slider.value) + " ms"
+                        }
+                    }
 
-                onMoved : {
-                    launcher_window.overlay_interval = value;
+                    Slider {
+                        id: interval_slider
+                        font.family: Config.info_font
+                        width: parent.width
+                        from: 30
+                        value: 80
+                        to: 200
+                        stepSize: 1
+
+                        background: Rectangle {
+                            x: interval_slider.leftPadding
+                            y: interval_slider.topPadding + interval_slider.availableHeight / 2 - height / 2
+                            implicitWidth: 140
+                            implicitHeight: 6
+                            width: interval_slider.availableWidth
+                            height: implicitHeight
+                            radius: 3
+                            color: Config.bg_color
+                            border.width: 1
+                            border.color: Config.secondary_cool_bg_color
+
+                            Rectangle {
+                                width: interval_slider.visualPosition * parent.width
+                                height: parent.height
+                                radius: 3
+                                color: Config.secondary_cool_bg_color
+                            }
+                        }
+
+                        handle: Rectangle {
+                            x: interval_slider.leftPadding + interval_slider.visualPosition * (interval_slider.availableWidth - width)
+                            y: interval_slider.topPadding + interval_slider.availableHeight / 2 - height / 2
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 7
+                            color: interval_slider.pressed ? Config.vibrant_cool_text_color : Config.secondary_cool_bg_color
+                            border.width: 1
+                            border.color: Config.primary_text_color
+                        }
+
+                        onMoved: {
+                            launcher_window.overlay_interval = value;
+                        }
+                    }
                 }
-            }
 
-            Label {
-                text: target_points_slider.value
-            }
+                Column {
+                    width: parent.width
+                    spacing: 4
 
-            Slider {
-                id: target_points_slider
-                from: 50
-                value: 60
-                to: 200
-                stepSize: 1
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 6
+                        Label {
+                            font.family: Config.info_font
+                            font.pixelSize: 12
+                            color: Config.primary_text_color
+                            text: qsTr("Points")
+                        }
+                        Label {
+                            font.family: Config.info_font
+                            font.pixelSize: 13
+                            color: Config.vibrant_cool_text_color
+                            text: Math.round(target_points_slider.value)
+                        }
+                    }
 
-                onMoved : {
-                    launcher_window.overlay_target_points = value;
+                    Slider {
+                        id: target_points_slider
+                        font.family: Config.info_font
+                        width: parent.width
+                        from: 50
+                        value: 60
+                        to: 200
+                        stepSize: 1
+
+                        background: Rectangle {
+                            x: target_points_slider.leftPadding
+                            y: target_points_slider.topPadding + target_points_slider.availableHeight / 2 - height / 2
+                            implicitWidth: 140
+                            implicitHeight: 6
+                            width: target_points_slider.availableWidth
+                            height: implicitHeight
+                            radius: 3
+                            color: Config.bg_color
+                            border.width: 1
+                            border.color: Config.secondary_cool_bg_color
+
+                            Rectangle {
+                                width: target_points_slider.visualPosition * parent.width
+                                height: parent.height
+                                radius: 3
+                                color: Config.secondary_cool_bg_color
+                            }
+                        }
+
+                        handle: Rectangle {
+                            x: target_points_slider.leftPadding + target_points_slider.visualPosition * (target_points_slider.availableWidth - width)
+                            y: target_points_slider.topPadding + target_points_slider.availableHeight / 2 - height / 2
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 7
+                            color: target_points_slider.pressed ? Config.vibrant_cool_text_color : Config.secondary_cool_bg_color
+                            border.width: 1
+                            border.color: Config.primary_text_color
+                        }
+
+                        onMoved: {
+                            launcher_window.overlay_target_points = value;
+                        }
+                    }
                 }
-            }
 
-            Rectangle {
-                width: 80
-                height: 80
-                anchors.horizontalCenter: parent.horizontalCenter
-                color: "transparent"
-                Image {
-                    id: icon
-                    source: "rc/images/CL.png"
-                    anchors.fill:parent
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
-                    mipmap: true
+                Item {
+                    width: 80
+                    height: 80
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Image {
+                        id: icon
+                        source: "rc/images/wave.png"
+                        anchors.fill: parent
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        mipmap: true
+                        visible: false
+                    }
+
+                    MultiEffect {
+                        id: image_effect
+                        property bool show_effect: true
+                        source: icon
+                        anchors.centerIn: icon
+                        width: icon.width
+                        height: icon.height
+                        shadowEnabled: true
+                        shadowColor: "black"
+                        shadowOpacity: 0.7
+                        shadowVerticalOffset: show_effect ? 12 : 6
+                        shadowScale: 1.02
+
+                        Behavior on shadowVerticalOffset {
+                            PropertyAnimation {
+                                target: image_effect
+                                property: "shadowVerticalOffset"
+                                duration: 550
+                                easing.type: Easing.InCubic
+                            }
+                        }
+                    }
 
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onEntered: {
                             image_effect.show_effect = false
                         }
@@ -129,46 +283,12 @@ ApplicationWindow {
                         }
                         Shortcut {
                             sequence: "Ctrl+Alt+A"
-
                             onActivated: {
-                                if (!app_loader.sourceComponent) {
-                                    app_loader.sourceComponent = overlay_component
-                                } else if (app_loader.sourceComponent === overlay_component) {
-                                    // destroy but not close, overlay closes itself
-                                    app_loader.item.uninitialize()
-                                }
+                                launcher_window.toggleOverlay()
                             }
                         }
                         onClicked: {
-                            if (!app_loader.sourceComponent) {
-                                app_loader.sourceComponent = overlay_component
-                            } else if (app_loader.sourceComponent === overlay_component) {
-                                // destroy but not close, overlay closes itself
-                                app_loader.item.uninitialize()
-                            }
-                        }
-                    }
-                }
-                MultiEffect {
-                    id: image_effect
-                    property bool show_effect: true
-                    source: icon
-                    anchors.centerIn: icon
-                    width: icon.width
-                    height: icon.height
-                    shadowEnabled: true
-                    shadowColor: "black"
-                    shadowOpacity: .7
-                    shadowVerticalOffset: show_effect ? 12 : 6
-                    shadowScale: 1.02
-                    opacity: 1
-
-                    Behavior on shadowVerticalOffset {
-                        PropertyAnimation {
-                            target: image_effect
-                            property: "shadowVerticalOffset"
-                            duration: 550
-                            easing.type: Easing.InCubic
+                            launcher_window.toggleOverlay()
                         }
                     }
                 }

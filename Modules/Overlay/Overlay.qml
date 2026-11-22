@@ -1,19 +1,22 @@
+// styling by Gemini (Clearly)
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Window
+import QtQuick.Shapes
 import Overlay
 import QtGraphs
 
 Window {
     id: overlay_window
-    x:0
-    y:0
-    width: Screen.desktopAvailableWidth
-    height: Screen.desktopAvailableHeight
+    x: 0
+    y: 0
+    width: Screen.width
+    height: Screen.height
     visible: true
-    flags: Qt.NoDropShadowWindowHint | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput
+    flags: Qt.Tool | Qt.NoDropShadowWindowHint | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput
     color: "transparent"
 
     required property int process_resolution
@@ -38,60 +41,82 @@ Window {
         audio.status = false
     }
 
-    Rectangle{
+    GraphsView {
+        id: graphs_view
         anchors.fill: parent
-        color: "#2233226C"
+        marginTop: 0
+        marginBottom: 0
+        marginLeft: 0
+        marginRight: 0
 
-        GraphsView {
-            anchors.fill: parent
-            theme : GraphsTheme {
-                theme: GraphsTheme.Theme.UserDefined
-                backgroundColor: "transparent"
-                backgroundVisible: true
-                seriesColors: ["green"]
-                colorStyle: GraphsTheme.ColorStyle.Uniform
-                labelFont.family: "Lucida Handwriting"
-                labelFont.pointSize: 16
-                gridVisible: false
-                grid.mainColor: "ivory"
-                grid.subColor: "gray"
-                labelBackgroundColor: "black"
-                labelBackgroundVisible: false
-                labelBorderVisible: false
-                labelTextColor: "white"
-                multiHighlightColor: "green"
-                singleHighlightColor: "darkRed"
-                plotAreaBackgroundVisible: false
+        theme: GraphsTheme {
+            theme: GraphsTheme.Theme.UserDefined
+            backgroundColor: "transparent"
+            backgroundVisible: false
+            plotAreaBackgroundColor: "transparent"
+            plotAreaBackgroundVisible: false
+            gridVisible: false
+            labelsVisible: false
+            labelBackgroundVisible: false
+            labelBorderVisible: false
+            colorStyle: GraphsTheme.ColorStyle.Uniform
+        }
+
+        axisX: LogValueAxis {
+            min: 20
+            max: 20000
+            base: 10
+            visible: false
+            lineVisible: false
+            labelsVisible: false
+            gridVisible: false
+            subGridVisible: false
+            titleVisible: false
+        }
+
+        axisY: ValueAxis {
+            min: 0
+            max: 80
+            visible: false
+            lineVisible: false
+            labelsVisible: false
+            gridVisible: false
+            subGridVisible: false
+            titleVisible: false
+        }
+
+        AreaSeries {
+            id: area_series
+            color: "#DC20581A"
+            borderColor: "#c8eefaff"
+            borderWidth: 2.5
+
+            gradient: LinearGradient {
+                x1: 0
+                y1: 0
+                x2: 0
+                y2: graphs_view.height
+                GradientStop { position: 0.0; color: "#DC20581A" }
+                GradientStop { position: 0.14; color: "#DC20581A" }
+                GradientStop { position: 0.34; color: "#DC20581A" }
+                GradientStop { position: 0.58; color: "#DC20581A" }
+                GradientStop { position: 0.80; color: "#DC20581A" }
+                GradientStop { position: 1.0; color: "#DC20581A" }
             }
 
-            axisX: LogValueAxis {
-                min: 20
-                max: 20000
-                base: 10
-            }
-            axisY: ValueAxis {
-                min: 0
-                max: 80
-            }
-
-            AreaSeries {
-                id: area_series
-                color: "#4000ff00"       // Semi-transparent green fill
-                borderColor: "#00ff00"   // Solid green top border
-                borderWidth: 2
-
-                upperSeries: LineSeries {
-                    // optimized: true
-                    id: line_series
-                    XYModelMapper {
-                        id: mapper
-                        model: audio.model
-                        series: line_series
-                        orientation: Qt.Horizontal
-                        ySection: 0
-                        xSection: 1
-                        count: 200
-                    }
+            upperSeries: SplineSeries {
+                id: line_series
+                onPointsAdded: {
+                    line_series.pointsReplaced()
+                }
+                XYModelMapper {
+                    id: mapper
+                    model: audio.model
+                    series: line_series
+                    orientation: Qt.Horizontal
+                    ySection: 0
+                    xSection: 1
+                    count: 200
                 }
             }
         }

@@ -12,6 +12,7 @@
 #include "mkl_service.h"
 #include "mkl_dfti.h"
 
+static constexpr float eps = 1e-12f;
 
 class FFTProcess : public QObject {
     Q_OBJECT
@@ -93,7 +94,8 @@ public:
         for (auto i=0; i<numBins;i++) {
             auto re = pOutputRaw[i].real;
             auto im = pOutputRaw[i].imag;
-            output[i] = std::sqrt(re * re + im * im);
+            auto mag = re * re + im * im;
+            output[i] = 10.0f * std::log10(mag + eps);
         }
 
         mkl_free(pOutputRaw);

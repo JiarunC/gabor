@@ -49,10 +49,14 @@ private:
 
     QMutex mutex;
     std::vector<float> pool;
+    std::vector<float> fftRes;
     std::vector<std::vector<float>> yx;
     Adapter mAdapter = Adapter(std::cref(yx));
 
     QFutureWatcher<void> watcher;
+
+    std::vector<std::vector<int>> mapping;
+    std::vector<float> tilts;
 
     /* Used by the capture thread */
     signed long long ref_times_per_s = 10000000;
@@ -133,18 +137,58 @@ public:
         fftp = new FFTProcess(this, mResolution);
         pool = std::vector<float>(mResolution, 0);
 
-        auto outputSize = mResolution/2+1;
+        // log binning
+        using namespace std;
+        constexpr auto nInitialNewBins = 255.0f;
+        const auto nBins = mResolution/2;
+
+        // holds fft resolutions must be N/2+1 (+1 is for 0)
+        fftRes = vector<float>(nBins+1, 0);
+
+        // holds tilt mapping
+        tilts = std::vector<float>(nBins+1,0);
+
+        // holds the x/y-axis for qt graphs
         yx = std::vector<std::vector<float>>(2);
-        yx[0] = std::vector<float>(outputSize, 0);
-        yx[1] = std::vector<float>(outputSize, 0);
-        float counter = 1;
-        for (auto &i : yx[1]) {
-            i = counter;
-            counter++;
+        // for x coordinates - parallel with mapping
+        yx[1] = std::vector<float>();
+
+        const auto base = static_cast<float>(nBins);
+        float newBinIndex = 1.0f;
+        auto newBinRightBoundary = pow(base, newBinIndex/nInitialNewBins);
+        float lastBin = 0.0f;
+        // log binning does not contain 0 from fft
+        // no access through index to avoid 1-0 indexing problems
+        for (auto i = 1; i<=nBins; i++) {
+            qDebug() << newBinRightBoundary;
+            if (i <= newBinRightBoundary) {
+                if (lastBin != newBinIndex) {
+                    // create new bin
+                    if (!yx[1].empty()) {
+                        yx[1].back() -= .5;
+                    }
+                    yx[1].push_back(static_cast<float>(newBinIndex));
+                    mapping.emplace_back(1, i);
+                } else {
+                    // bin already exists
+                    mapping.back().push_back(i);
+                }
+                lastBin = newBinIndex;
+            } else {
+                newBinIndex++;
+                newBinRightBoundary = pow(base, newBinIndex/nInitialNewBins);
+                yx[1].back() += .5;
+                i--;
+            }
         }
+        // for magnitudes
+        yx[0] = std::vector<float>(yx[1].size());
+
+        qDebug() << mapping;
+        qDebug() << yx[1];
 
         // GUI thread
-        timer = new QChronoTimer(std::chrono::nanoseconds(30000000), this);
+        timer = new QChronoTimer(std::chrono::nanoseconds(100000000), this);
         connect(timer, &QChronoTimer::timeout, this, &AudioCapture::updateSeries);
         timer->start();
 
@@ -158,13 +202,37 @@ public:
         emit uninitialized();
     }
 
+    void initializeTilt() {
+        for (int k = 1; k < tilts.size(); ++k) {
+            constexpr float pivot = 1000.0f;
+            constexpr float slope = 3.0f;
+            const float freq = k * (pwfx->nSamplesPerSec / static_cast<float>(mResolution));
+            tilts[k] = slope * std::log2(freq / pivot);
+        }
+    }
+
     [[nodiscard]] QAbstractItemModel* model() const {
         return mAdapter.model();
     }
 
     void updateSeries() {
+
         QMutexLocker locker(&mutex);
-        fftp->AFFT(pool, yx[0]);
+        fftp->AFFT(pool, fftRes);
+
+        // apply tilt
+        for (auto i=1;i<fftRes.size();i++) {
+            fftRes[i] += tilts[i];
+        }
+
+        // map to log bins
+        for (auto i=0; i<yx[0].size();i++) {
+            float mx = 0;
+            for (const auto& largeBinIndex : mapping[i]) {
+                mx = std::max(mx, fftRes[largeBinIndex]);
+            }
+            yx[0][i] = mx;
+        }
         mAdapter.assign(std::cref(yx));
     }
 
@@ -298,6 +366,9 @@ public:
             exit();
             return hr;
         }
+
+        // pwfx initialized
+        initializeTilt();
 
         while (mStatus) {
             DWORD waitResult;

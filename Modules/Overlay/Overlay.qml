@@ -10,8 +10,8 @@ Window {
     id: overlay_window
     x:0
     y:0
-    width: 800
-    height: 400
+    width: 1600
+    height: 800
     visible: true
     flags: Qt.NoDropShadowWindowHint | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput
     color: "transparent"
@@ -61,21 +61,21 @@ Window {
                 plotAreaBackgroundVisible: false
             }
 
-            axisX: LogValueAxis {
+            axisX: ValueAxis {
                 min: 1
-                max: process_resolution/2
+                max: 300
             }
             axisY: ValueAxis {
                 min: 0
-                max: process_resolution/2
+                max: 80
             }
 
-            LineSeries {
+            SplineSeries {
                 // optimized: true
                 id: line_series
                 color: "#00ff00"
                 GraphTransition {
-                    GraphPointAnimation { duration: 24; easingCurve.type: Easing.Linear  }
+                    GraphPointAnimation { duration: 85; easingCurve.type: Easing.Linear  }
                 }
                 XYModelMapper {
                     id: mapper
@@ -84,7 +84,7 @@ Window {
                     orientation: Qt.Horizontal
                     ySection: 0
                     xSection: 1
-                    count: process_resolution/2
+                    count: 100
 
 
                 }

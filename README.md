@@ -7,5 +7,5 @@
     [x] Closing and Destruction
     [x] Reuse of overlay
     Address device change
-    Resolution
+    Resolution !!!!!
     Display

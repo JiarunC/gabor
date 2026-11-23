@@ -48,7 +48,7 @@ set_target_properties(appWAV PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE FALSE
+    WIN32_EXECUTABLE TRUE
 )
 
 target_link_libraries(appWAV
@@ -66,3 +66,5 @@ qt_generate_deploy_qml_app_script(
         OUTPUT_SCRIPT deploy_script
 )
 install(SCRIPT ${deploy_script})
+
+include(CPack)

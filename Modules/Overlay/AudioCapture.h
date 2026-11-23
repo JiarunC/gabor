@@ -152,12 +152,18 @@ public:
         // GUI thread
         timer = new QChronoTimer(std::chrono::nanoseconds(mUpdateInterval * 1000000), this);
         connect(timer, &QChronoTimer::timeout, this, &AudioCapture::updateSeries);
-        timer->start();
+        QTimer::singleShot(200, this, &AudioCapture::startTimer);
 
         // separate thread
         connect(&watcher, &QFutureWatcher<void>::finished, this, &AudioCapture::uninitialize);
         const QFuture<void> future = QtConcurrent::run(&AudioCapture::captureAudio, this);
         watcher.setFuture(future);
+    }
+
+    // for delayed update series timer start
+    // without delay, first timeout is before arrays are initialized
+    void startTimer() const {
+        timer->start();
     }
 
     void uninitialize() {

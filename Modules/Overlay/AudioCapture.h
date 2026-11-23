@@ -229,7 +229,11 @@ public:
             }
         }
 
-        // for magnitudes (index 0 stays 0.0f for the 20 Hz display anchor)
+        // Display anchor at 20 kHz with an empty bin mapping
+        yx[1].push_back(fMax);
+        mapping.emplace_back();
+
+        // for magnitudes (first and last indices stay 0.0f for the 20 Hz and 20 kHz display anchors)
         yx[0] = std::vector<float>(yx[1].size(), 0.0f);
         mAdapter.assign(std::cref(yx));
 

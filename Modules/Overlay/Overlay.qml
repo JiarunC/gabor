@@ -87,7 +87,6 @@ Window {
 
         AreaSeries {
             id: area_series
-            color: "#DC20581A"
             borderColor: "#c8eefaff"
             borderWidth: 2.5
 
@@ -96,12 +95,11 @@ Window {
                 y1: 0
                 x2: 0
                 y2: graphs_view.height
-                GradientStop { position: 0.0; color: "#DC20581A" }
-                GradientStop { position: 0.14; color: "#DC20581A" }
-                GradientStop { position: 0.34; color: "#DC20581A" }
-                GradientStop { position: 0.58; color: "#DC20581A" }
-                GradientStop { position: 0.80; color: "#DC20581A" }
-                GradientStop { position: 1.0; color: "#DC20581A" }
+                GradientStop { position: 0.0; color:  "#1000ffff" }
+                GradientStop { position: 0.60; color: "#1a00fff7" }
+                GradientStop { position: 0.70; color: "#2a00ffb2" }
+                GradientStop { position: 0.85; color: "#3a00ff80" }
+                GradientStop { position: 1.0; color:  "#5a00eaff" }
             }
 
             upperSeries: SplineSeries {
@@ -116,7 +114,6 @@ Window {
                     orientation: Qt.Horizontal
                     ySection: 0
                     xSection: 1
-                    count: 200
                 }
             }
         }

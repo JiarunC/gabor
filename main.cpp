@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 
@@ -7,6 +8,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     QCoreApplication::setApplicationName("WAV");
+    QGuiApplication::setWindowIcon(QIcon(":/qt/qml/WAV/rc/icons/wave.ico"));
     QQuickStyle::setStyle("FluentWinUI3");
     QQmlApplicationEngine engine;
 

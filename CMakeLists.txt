@@ -16,10 +16,11 @@ set(MKL_THREADING "sequential")
 
 find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
 
-qt_standard_project_setup(REQUIRES 6.10)
+qt_standard_project_setup(REQUIRES 6.12)
 
+set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/rc/icons/Resource.rc")
 qt_add_executable(appWAV
-    main.cpp
+    main.cpp ${app_icon_resource_windows}
 )
 target_compile_options(appWAV PUBLIC "/Zc:__cplusplus")
 add_compile_options(/Zc:__cplusplus)
@@ -31,7 +32,7 @@ qt_add_qml_module(appWAV
         CustomComboBox.qml
     RESOURCES
         rc/images/expand_all.png
-        rc/images/wave.png
+        rc/icons/wave.ico
         rc/fonts/Alice/Alice-Regular.ttf
         rc/fonts/Baumans/Baumans-Regular.ttf
 )

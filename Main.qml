@@ -46,11 +46,7 @@ ApplicationWindow {
     }
 
     onClosing: {
-        if (overlay_instance) {
-            overlay_instance.close();
-            overlay_instance.destroy();
-            overlay_instance = null;
-        }
+        overlay_instance.uninitialize();
     }
 
     Component {

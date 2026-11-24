@@ -22,6 +22,7 @@ Window {
     required property int process_resolution
     property int process_interval
     property int process_target_points
+    property int process_y_scale: 80
 
     AudioCapture {
         id: audio
@@ -76,7 +77,7 @@ Window {
 
         axisY: ValueAxis {
             min: 0
-            max: 80
+            max: overlay_window.process_y_scale
             visible: false
             lineVisible: false
             labelsVisible: false

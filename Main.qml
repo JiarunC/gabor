@@ -18,6 +18,7 @@ ApplicationWindow {
     property int overlay_resolution: 1024
     property int overlay_interval: 80
     property int overlay_target_points: 55
+    property int overlay_y_scale: 80
     property var overlay_instance: null
 
     function toggleOverlay() {
@@ -25,7 +26,8 @@ ApplicationWindow {
             overlay_instance = overlay_component.createObject(null, {
                 process_resolution: Qt.binding(function() { return launcher_window.overlay_resolution; }),
                 process_interval: Qt.binding(function() { return launcher_window.overlay_interval; }),
-                process_target_points: Qt.binding(function() { return launcher_window.overlay_target_points; })
+                process_target_points: Qt.binding(function() { return launcher_window.overlay_target_points; }),
+                process_y_scale: Qt.binding(function() { return launcher_window.overlay_y_scale; })
             });
             if (overlay_instance) {
                 overlay_instance.closing.connect(function() {
@@ -57,6 +59,7 @@ ApplicationWindow {
             process_resolution: launcher_window.overlay_resolution
             process_interval: launcher_window.overlay_interval
             process_target_points: launcher_window.overlay_target_points
+            process_y_scale: launcher_window.overlay_y_scale
         }
     }
 
@@ -88,6 +91,7 @@ ApplicationWindow {
 
                 CustomComboBox {
                     id: resolution_combo_box
+                    visible: launcher_window.overlay_instance === null
                     alternate_colors: false
                     font.family: Config.info_font
                     font.pixelSize: 13
@@ -100,6 +104,7 @@ ApplicationWindow {
                 }
 
                 Column {
+                    visible: launcher_window.overlay_instance === null
                     width: parent.width
                     spacing: 4
 
@@ -167,6 +172,7 @@ ApplicationWindow {
                 }
 
                 Column {
+                    visible: launcher_window.overlay_instance === null
                     width: parent.width
                     spacing: 4
 
@@ -229,6 +235,74 @@ ApplicationWindow {
 
                         onMoved: {
                             launcher_window.overlay_target_points = value;
+                        }
+                    }
+                }
+
+                Column {
+                    visible: launcher_window.overlay_instance !== null
+                    width: parent.width
+                    spacing: 4
+
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 6
+                        Label {
+                            font.family: Config.info_font
+                            font.pixelSize: 12
+                            color: Config.primary_text_color
+                            text: qsTr("Y Scale")
+                        }
+                        Label {
+                            font.family: Config.info_font
+                            font.pixelSize: 13
+                            color: Config.vibrant_cool_text_color
+                            text: Math.round(y_scale_slider.value)
+                        }
+                    }
+
+                    Slider {
+                        id: y_scale_slider
+                        font.family: Config.info_font
+                        width: parent.width
+                        from: 20
+                        value: 80
+                        to: 200
+                        stepSize: 1
+
+                        background: Rectangle {
+                            x: y_scale_slider.leftPadding
+                            y: y_scale_slider.topPadding + y_scale_slider.availableHeight / 2 - height / 2
+                            implicitWidth: 140
+                            implicitHeight: 6
+                            width: y_scale_slider.availableWidth
+                            height: implicitHeight
+                            radius: 3
+                            color: Config.bg_color
+                            border.width: 1
+                            border.color: Config.secondary_cool_bg_color
+
+                            Rectangle {
+                                width: y_scale_slider.visualPosition * parent.width
+                                height: parent.height
+                                radius: 3
+                                color: Config.secondary_cool_bg_color
+                            }
+                        }
+
+                        handle: Rectangle {
+                            x: y_scale_slider.leftPadding + y_scale_slider.visualPosition * (y_scale_slider.availableWidth - width)
+                            y: y_scale_slider.topPadding + y_scale_slider.availableHeight / 2 - height / 2
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 7
+                            color: y_scale_slider.pressed ? Config.vibrant_cool_text_color : Config.secondary_cool_bg_color
+                            border.width: 1
+                            border.color: Config.primary_text_color
+                        }
+
+                        onMoved: {
+                            launcher_window.overlay_y_scale = value;
                         }
                     }
                 }

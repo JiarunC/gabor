@@ -116,6 +116,18 @@ Window {
                     xSection: 1
                 }
             }
+
+            lowerSeries: LineSeries {
+                XYPoint {
+                    x: 20
+                    y: -20
+                }
+
+                XYPoint {
+                    x: 20000
+                    y: -20
+                }
+            }
         }
     }
 }

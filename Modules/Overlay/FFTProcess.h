@@ -19,13 +19,13 @@ class FFTProcess : public QObject {
 
 private:
     const MKL_LONG N;
-    std::vector<float>* weights;
+    std::vector<float> weights;
     DFTI_DESCRIPTOR_HANDLE handle = nullptr;
 public:
     explicit FFTProcess(QObject *parent = nullptr, MKL_LONG resolution = 1024) : QObject(parent), N(resolution) {
-        weights = new std::vector<float>(N);
+        weights = std::vector<float>(N);
         for (auto i = 0; i < N; i++) {
-            weights->at(i) = 0.5 - 0.5 * std::cos((2 * std::numbers::pi * i) / (N - 1));
+            weights.at(i) = 0.5 - 0.5 * std::cos((2 * std::numbers::pi * i) / (N - 1));
         }
     }
 
@@ -57,7 +57,7 @@ public:
 
         MKL_LONG status = 0;
 
-        if (true) {
+        if (!handle) {
             status = establishHandle();
             if (status != DFTI_NO_ERROR) {
                 cleanUp();
@@ -69,20 +69,17 @@ public:
 
         // window
         for (auto i=0;i<N;i++) {
-            input[i] *= weights->at(i);
+            input[i] *= weights.at(i);
         }
-
-        // real
-        float *pInput = input.data();
 
         // complex
         MKL_Complex8 *pOutputRaw = nullptr;
         pOutputRaw = static_cast<MKL_Complex8 *>(mkl_malloc((N / 2 + 1) * sizeof(MKL_Complex8), 64));
-        if (pInput == nullptr || pOutputRaw == nullptr) {
+        if (input.empty() || pOutputRaw == nullptr) {
             cleanUp(pOutputRaw);
             return 1;
         }
-        status = DftiComputeForward(handle, pInput, pOutputRaw);
+        status = DftiComputeForward(handle, input.data(), pOutputRaw);
         if (status != DFTI_NO_ERROR) {
             cleanUp(pOutputRaw);
             return 1;

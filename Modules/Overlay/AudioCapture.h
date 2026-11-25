@@ -77,7 +77,6 @@ private:
     IAudioCaptureClient *pCaptureClient = nullptr;
     WAVEFORMATEX *pwfx = nullptr;
     UINT32 packetLength = 0;
-    BOOL bDone = FALSE;
     BYTE *pData;
     DWORD flags;
     HANDLE handle = CreateEvent(
@@ -119,8 +118,9 @@ public:
         safe_release(pCaptureClient);
 
         // does not handle null
-        if (!handle) {
+        if (handle) {
             CloseHandle(handle);
+            handle = nullptr;
         }
 
         // only on thread that initialized
@@ -280,13 +280,13 @@ public:
 
         // personal use - only handles most likely format
         if (pwfx->wFormatTag != WAVE_FORMAT_EXTENSIBLE) {
-            return ERROR_NOT_SUPPORTED;
+            return AUDCLNT_E_UNSUPPORTED_FORMAT;
         }
 
         if (const auto *pEx = reinterpret_cast<const WAVEFORMATEXTENSIBLE *>(pwfx);
             pEx->SubFormat != KSDATAFORMAT_SUBTYPE_IEEE_FLOAT ||
             pEx->Samples.wValidBitsPerSample != 32) {
-            return ERROR_NOT_SUPPORTED;
+            return AUDCLNT_E_UNSUPPORTED_FORMAT;
         }
 
         const auto nChannels = pwfx->nChannels;
